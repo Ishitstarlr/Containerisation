@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "CoverImage" ALTER COLUMN "filePath" DROP NOT NULL,
+ALTER COLUMN "bucket" DROP NOT NULL;

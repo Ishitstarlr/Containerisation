@@ -1,0 +1,128 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-black: #111111;
+  --secondary-gray: #666666;
+  --accent-white: #ffffff;
+}
+
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--accent-white);
+  color: var(--primary-black);
+}
+
+.container-width {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.btn-primary {
+  @apply px-6 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors font-medium;
+  font-family: 'Poppins', sans-serif;
+}
+
+.btn-secondary {
+  @apply px-6 py-3 border border-black text-black rounded-full hover:bg-black hover:text-white transition-colors font-medium;
+  font-family: 'Poppins', sans-serif;
+}
+
+.nav-link {
+  @apply text-gray-600 hover:text-black transition-colors font-medium;
+  font-family: 'Poppins', sans-serif;
+}
+
+.heading-xl {
+  @apply text-6xl md:text-7xl lg:text-8xl font-semibold leading-tight tracking-tight;
+  font-family: 'Poppins', sans-serif;
+}
+
+.heading-lg {
+  @apply text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight;
+  font-family: 'Poppins', sans-serif;
+}
+
+.body-text {
+  @apply text-lg text-gray-600 font-light;
+  font-family: 'Poppins', sans-serif;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.delay-150 {
+  animation-delay: 150ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+.delay-450 {
+  animation-delay: 450ms;
+}
+
+@keyframes drawLine {
+  from {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes barRise {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes barFill {
+  to {
+    height: 100%;
+  }
+}
+
+.animate-drawLine {
+  animation: drawLine 1.5s ease-out forwards;
+}
+
+.animate-barRise {
+  animation: barRise 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-barFill {
+  animation: barFill 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}

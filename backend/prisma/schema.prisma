@@ -1,0 +1,323 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String           @id @default(cuid())
+  auth0Id        String           @unique
+  email          String           @unique
+  username       String           @unique
+  role           UserRole         @default(ORGANIZER)
+  status         UserStatus       @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  profile        UserProfile?
+  education      UserEducation[]
+  experience     UserExperience[]
+  skills         UserSkill[]
+  socialProfiles UserSocialProfile[]
+  applications   Application[]
+  createdEvents  Event[]
+  teamMembers    TeamMember[]
+}
+
+model UserProfile {
+  id        Int       @id @default(autoincrement())
+  userId    String    @unique
+  firstName String?
+  lastName  String?
+  avatarUrl String?
+  bio       String?
+  gender    Gender?
+  phone     String?
+  country   String?
+  city      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserEducation {
+  id              Int       @id @default(autoincrement())
+  userId          String
+  institutionName String
+  degree          String
+  fieldOfStudy    String
+  graduationYear  Int?
+  createdAt       DateTime  @default(now())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserExperience {
+  id          Int       @id @default(autoincrement())
+  userId      String
+  company     String
+  position    String
+  startDate   DateTime
+  endDate     DateTime?
+  current     Boolean   @default(false)
+  description String?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserSkill {
+  id             Int            @id @default(autoincrement())
+  userId         String
+  skillName      String
+  expertiseLevel ExpertiseLevel
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserSocialProfile {
+  id       Int            @id @default(autoincrement())
+  userId   String
+  platform SocialPlatform
+  url      String
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Event {
+  id                Int                 @id @default(autoincrement())
+  name              String
+  type              EventType
+  tagline           String?
+  about             String?
+  maxParticipants   Int?
+  minTeamSize       Int?
+  maxTeamSize       Int?
+  mode              EventMode          @default(ONLINE)
+  status            EventStatus        @default(DRAFT)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  createdById       String
+  createdBy         User               @relation(fields: [createdById], references: [id])
+  timeline          EventTimeline?
+  links             EventLink?
+  branding          EventBranding?
+  tracks            Track[]
+  sponsors          Sponsor[]
+  eventPeople       EventPerson[]
+  applications      Application[]
+  applicationForm   ApplicationForm?
+  customQuestions   CustomQuestion[]
+  teams             Team[]
+  projects          ProjectSubmission[]
+}
+
+model ApplicationForm {
+  id                 Int     @id @default(autoincrement())
+  eventId            Int     @unique
+  educationRequired  Boolean @default(false)
+  experienceRequired Boolean @default(false)
+  profilesRequired   Boolean @default(false)
+  contactRequired    Boolean @default(false)
+  tShirtSizeRequired Boolean @default(false)
+  event              Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model CustomQuestion {
+  id           Int     @id @default(autoincrement())
+  questionText String
+  questionType String
+  options      Json?
+  isRequired   Boolean @default(false)
+  eventId      Int
+  event        Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model EventTimeline {
+  id                Int      @id @default(autoincrement())
+  eventId           Int      @unique
+  eventStart        DateTime
+  eventEnd          DateTime
+  applicationsStart DateTime?
+  applicationsEnd   DateTime?
+  rsvpDaysBeforeDeadline      Int?
+  event             Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model EventLink {
+  id           Int     @id @default(autoincrement())
+  eventId      Int     @unique
+  websiteUrl   String?
+  micrositeUrl String?
+  contactEmail String?
+  socialLinks  Json?   // For storing multiple social media links
+  event        Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model EventBranding {
+  id        Int     @id @default(autoincrement())
+  eventId   Int     @unique
+  logoUrl   String?
+  coverUrl  String?
+  brandColor String?
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model Track {
+  id          Int     @id @default(autoincrement())
+  eventId     Int
+  name        String
+  description String?
+  prizes      Prize[]
+  event       Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model Prize {
+  id          Int     @id @default(autoincrement())
+  trackId     Int
+  title       String
+  description String?
+  value       Float?
+  track       Track   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+}
+
+model Sponsor {
+  id          Int         @id @default(autoincrement())
+  eventId     Int
+  name        String
+  logoUrl     String?
+  websiteUrl  String?
+  tier        SponsorTier
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model EventPerson {
+  id          Int             @id @default(autoincrement())
+  eventId     Int
+  name        String
+  role        EventPersonRole
+  imageUrl    String?        
+  description String?        
+  socialLinks Json?          
+  event       Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model Team {
+  id           Int                @id @default(autoincrement())
+  eventId      Int
+  name         String
+  hashCode     String            @unique
+  createdAt    DateTime          @default(now())
+  event        Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  members      TeamMember[]
+  applications Application[]
+  projects     ProjectSubmission[]
+}
+
+model TeamMember {
+  id     Int            @id @default(autoincrement())
+  teamId Int
+  userId String
+  role   TeamMemberRole
+  team   Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user   User           @relation(fields: [userId], references: [id])
+}
+
+model Application {
+  id         Int              @id @default(autoincrement())
+  eventId    Int
+  userId     String
+  teamId     Int?
+  status     ApplicationStatus
+  createdAt  DateTime         @default(now())
+  event      Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [userId], references: [id])
+  team       Team?            @relation(fields: [teamId], references: [id])
+  userData   Json
+  responses  Json
+}
+
+model ProjectSubmission {
+  id          Int      @id @default(autoincrement())
+  eventId     Int
+  teamId      Int
+  title       String
+  description String
+  githubUrl   String?
+  demoUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  team        Team     @relation(fields: [teamId], references: [id])
+}
+
+enum UserRole {
+  ADMIN
+  ORGANIZER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum ExpertiseLevel {
+  BEGINNER
+  INTERMEDIATE
+  EXPERT
+}
+
+enum SocialPlatform {
+  GITHUB
+  LINKEDIN
+  TWITTER
+  PORTFOLIO
+  OTHER
+}
+
+enum EventType {
+  HACKATHON
+  GENERAL_EVENT
+}
+
+enum EventMode {
+  ONLINE
+  OFFLINE
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  AUTOSAVE
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WAITLISTED
+}
+
+enum SponsorTier {
+  PLATINUM
+  GOLD
+  SILVER
+  BRONZE
+}
+
+enum EventPersonRole {
+  SPEAKER
+  JUDGE
+}
+
+enum TeamMemberRole {
+  LEADER
+  MEMBER
+}
