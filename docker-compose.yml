@@ -10,6 +10,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - backend-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orbis"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
 
   backend:
@@ -23,9 +28,10 @@ services:
       AUTH0_ISSUER_BASE_URL: https://dev-dummy.auth0.com/
       AUTH0_AUDIENCE: https://api.orbis.com
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     networks:
-      - frontend-network
+      - backend-network
     restart: unless-stopped
 
   frontend:
