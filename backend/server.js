@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import os from 'node:os';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -15,6 +16,12 @@ import profileRoutes from './src/routes/profiles.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// Identifies the serving replica during load-balancing verification.
+app.use((req, res, next) => {
+  res.set('X-Backend-Hostname', os.hostname());
+  next();
+});
 
 // Middleware
 app.use(cors({
@@ -69,4 +76,3 @@ const gracefulShutdown = async () => {
 // Handle shutdown signals
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
-

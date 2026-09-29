@@ -21,7 +21,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: orbis-backend
     environment:
       PORT: ${PORT:?Set PORT in .env}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
@@ -38,6 +37,8 @@ services:
       start_period: 20s
     networks:
       - backend-network
+    deploy:
+      replicas: ${BACKEND_REPLICAS:?Set BACKEND_REPLICAS in .env}
     restart: unless-stopped
 
   frontend:
