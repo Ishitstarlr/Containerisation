@@ -1,5 +1,156 @@
 # Containerisation Submission Evidence
 
+## Final reproduction and verification (Phases 1–8)
+
+### Prerequisites
+
+- Docker Desktop or Docker Engine with the Compose v2 plugin
+- `curl`; ApacheBench (`ab`) only for the optional Phase 7 benchmark
+
+### Start the complete stack
+
+```sh
+git clone <your-private-repository-url>
+cd Containerisation
+cp .env.example .env
+# Replace the example values before any non-local deployment.
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+```
+
+The checked-in `.env.example` is a local development template; `.env` is ignored
+and must not be committed. The final Compose configuration starts PostgreSQL,
+three backend replicas (the `BACKEND_REPLICAS` value controls this), the
+unprivileged frontend, and the HTTPS reverse proxy. Only the proxy publishes
+host ports, which default to 80 and 443.
+
+### Final verification commands
+
+```sh
+# HTTP redirects; HTTPS serves frontend and public API traffic.
+curl -I http://localhost/
+curl --fail --insecure https://localhost/ -o /dev/null
+curl --fail --insecure https://localhost/api/events -o /dev/null
+
+# Validate the proxy and the unprivileged frontend configuration.
+docker compose exec -T proxy nginx -t
+docker compose exec -T frontend nginx -t
+
+# Show the runtime identities.
+docker compose exec -T backend whoami
+docker compose exec -T frontend whoami
+```
+
+The final clean verification on 2026-09-30 used `docker compose down` (without
+`-v`) followed by `docker compose up --build -d`. It produced three healthy
+backend containers, a healthy database, and running frontend/proxy containers.
+The host checks produced a `301 Moved Permanently` from HTTP and
+`API_STATUS=200` from `https://localhost/api/events`.
+
+## Phase 1 — End-to-end build and verification
+
+### Historical diagnostics and fixes
+
+The Phase 1 changes are recorded in commit `dde9e5b`. Contemporaneous terminal
+logs from that earlier work were not retained, so this document does not invent
+raw output for them. The committed diff identifies these diagnosed faults and
+their fixes:
+
+- The backend image generated Prisma before its schema and dependencies were
+  available. Dependency manifests are now copied before `npm ci`, the Prisma
+  schema is copied before client generation, and OpenSSL is installed for Prisma.
+- The backend could start before PostgreSQL was ready. A PostgreSQL healthcheck
+  and health-gated backend dependency were added; the entrypoint applies Prisma
+  migrations before starting Node.
+- The backend was placed on the wrong network and the proxy targeted the
+  non-existent `backend-api` hostname. Both now use the Compose `backend`
+  service on the backend network.
+- The frontend defaulted to a direct host backend URL. It now uses the reverse
+  proxy path, avoiding browser-to-container addressing failures.
+
+The current final run provides the retained raw runtime evidence:
+
+```text
+20 migrations found in prisma/migrations
+No pending migrations to apply.
+Starting backend server...
+Server running on port 4000
+Database connected successfully
+```
+
+## Phase 2 — Frontend image optimization
+
+The frontend is a multi-stage build: Node and all build dependencies exist only
+in the builder stage, while the runtime contains the static Vite bundle and
+unprivileged Nginx. The final checked image was below the 110MB requirement:
+
+```text
+containerisation-frontend:latest 83.8MB
+```
+
+## Phase 3 — Database configuration and persistence
+
+PostgreSQL receives `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from
+`.env`; the backend receives its connection string from the same file. No
+database port is published. Data is stored in the named `postgres_data` volume.
+
+For the final persistence test, a temporary table and record were inserted,
+containers and networks were removed with `docker compose down` (without
+`-v`), the stack was rebuilt, and the record was queried before the temporary
+table was dropped. Raw output:
+
+```text
+CREATE TABLE
+INSERT 0 1
+    id
+----------
+ 20260930
+(1 row)
+
+    id
+----------
+ 20260930
+(1 row)
+
+DROP TABLE
+```
+
+## Phase 4 — Network segmentation and isolation
+
+The final topology has a frontend network containing only frontend and proxy,
+and a backend network containing database, three backend replicas, and proxy.
+The complete raw `docker network inspect` output from the final run is tracked
+in [`evidence/final-network-inspect.json`](evidence/final-network-inspect.json).
+
+Host and internal connectivity verification produced:
+
+```text
+BACKEND_HOST_PORT=unreachable
+DATABASE_HOST_PORT=unreachable
+INTERNAL_DATABASE=reachable
+```
+
+This is consistent with Compose publishing only the proxy's 80 and 443 ports.
+
+## Phase 5 — HTTPS termination and HTTP redirection
+
+Nginx terminates TLS with the checked-in self-signed localhost certificate and
+redirects port 80 to HTTPS. Final raw HTTP and TLS output:
+
+```text
+HTTP/1.1 301 Moved Permanently
+Location: https://localhost/
+
+Protocol version: TLSv1.3
+Ciphersuite: TLS_AES_256_GCM_SHA384
+Peer certificate: CN=localhost
+Verification error: self-signed certificate
+```
+
+The self-signed verification warning is expected for a local certificate;
+`curl --insecure` was used only for local verification.
+
 ## Phase 6 — Consolidated orchestration and build cache analysis
 
 ### Reproduce
@@ -150,6 +301,22 @@ API traffic is limited per client IP to 100 requests/sec with a burst allowance
 of 100 and returns HTTP 429 when exceeded. The allowance lets the controlled
 100-request comparison run without accidental throttling, while limiting a
 larger abusive burst.
+
+A final post-hardening regression check again rotated through three live
+replicas and confirmed that throttling remains active:
+
+```text
+X-Backend-Hostname: c462f7d0d3b6
+X-Backend-Hostname: 5053745bcea9
+X-Backend-Hostname: 81e8bf137a26
+X-Backend-Hostname: c462f7d0d3b6
+X-Backend-Hostname: 5053745bcea9
+X-Backend-Hostname: 81e8bf137a26
+Complete requests:      250
+Failed requests:        106
+Non-2xx responses:      106
+"GET /api/events HTTP/1.0" 429 169 "-" "ApacheBench/2.3" "-"
+```
 
 ### Load-test method
 

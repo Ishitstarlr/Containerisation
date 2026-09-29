@@ -1,0 +1,147 @@
+[
+    {
+        "Name": "containerisation_frontend-network",
+        "Id": "7d1e00a2b7772b4d84f158893bc31564e332d4b9d1cae0895d1716438a18b414",
+        "Created": "2026-09-29T22:53:51.208383511Z",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv4": true,
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "172.20.0.0/16",
+                    "Gateway": "172.20.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Ingress": false,
+        "ConfigFrom": {
+            "Network": ""
+        },
+        "ConfigOnly": false,
+        "Options": {
+            "com.docker.network.enable_ipv4": "true",
+            "com.docker.network.enable_ipv6": "false"
+        },
+        "Labels": {
+            "com.docker.compose.config-hash": "68b60479bdbca9dbbf4b90201a2f2e8db2c9f31f3407aab89e4686ae93c1d201",
+            "com.docker.compose.network": "frontend-network",
+            "com.docker.compose.project": "containerisation",
+            "com.docker.compose.version": "5.3.1"
+        },
+        "Containers": {
+            "1f5fd776617c3abbf99bb084a94d6fb81c61a28025df13e0ad9060da54fcf89d": {
+                "Name": "orbis-frontend",
+                "EndpointID": "899750fad70766056589580afd3bcff4686d356a1fba7bea276fab2d948179b4",
+                "MacAddress": "3a:2b:94:c4:17:14",
+                "IPv4Address": "172.20.0.2/16",
+                "IPv6Address": ""
+            },
+            "af0e2a8a2f738b9c60c642f5e03b7f361218ca569b615bbc88d9ea149e899579": {
+                "Name": "orbis-proxy",
+                "EndpointID": "027939e78b6690b8962a2117c42353cae341398e2f64cd5c03b04fa294d2300b",
+                "MacAddress": "86:44:44:b6:c3:c5",
+                "IPv4Address": "172.20.0.3/16",
+                "IPv6Address": ""
+            }
+        },
+        "Status": {
+            "IPAM": {
+                "Subnets": {
+                    "172.20.0.0/16": {
+                        "IPsInUse": 5,
+                        "DynamicIPsAvailable": 65531
+                    }
+                }
+            }
+        }
+    },
+    {
+        "Name": "containerisation_backend-network",
+        "Id": "45b3e2881db217258041edb286f660767f941907efc77d29409280246470ca1",
+        "Created": "2026-09-29T22:53:51.185214719Z",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv4": true,
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "172.19.0.0/16",
+                    "Gateway": "172.19.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Ingress": false,
+        "ConfigFrom": {
+            "Network": ""
+        },
+        "ConfigOnly": false,
+        "Options": {
+            "com.docker.network.enable_ipv4": "true",
+            "com.docker.network.enable_ipv6": "false"
+        },
+        "Labels": {
+            "com.docker.compose.config-hash": "29eb36571bb48c70e61e6cdfc24044acd64325e9b7be9e8167d981d2816a16d1",
+            "com.docker.compose.network": "backend-network",
+            "com.docker.compose.project": "containerisation",
+            "com.docker.compose.version": "5.3.1"
+        },
+        "Containers": {
+            "0bb0f9a9fb1b1e0f5b86abe812894da06b0f0eb7370eb12fbaddfe545f083f91": {
+                "Name": "orbis-db",
+                "EndpointID": "1bf3b9668ba0c5e8c0681c5cec76ff242171c3758a8b3216fc11e12cf1a00440",
+                "MacAddress": "c6:b3:7c:b9:e4:91",
+                "IPv4Address": "172.19.0.2/16",
+                "IPv6Address": ""
+            },
+            "5053745bcea9bcb62f7548d6f1028fd95ced4c145a77d472db611ac3260dba9b": {
+                "Name": "containerisation-backend-3",
+                "EndpointID": "daae52066bd2e5f64688b95cd9bb9c587a07e5426945e903c234549fcb9405d5",
+                "MacAddress": "82:1c:5d:1e:f0:d9",
+                "IPv4Address": "172.19.0.3/16",
+                "IPv6Address": ""
+            },
+            "81e8bf137a26479c7f8ef09e2fd582b4531ec0bf01e90aa53ab758f68c95336f": {
+                "Name": "containerisation-backend-1",
+                "EndpointID": "7c43e8a5fff61600455d6392e3399d459d09203810579061238b5fab6ba0006b",
+                "MacAddress": "b2:4c:15:6b:41:80",
+                "IPv4Address": "172.19.0.5/16",
+                "IPv6Address": ""
+            },
+            "af0e2a8a2f738b9c60c642f5e03b7f361218ca569b615bbc88d9ea149e899579": {
+                "Name": "orbis-proxy",
+                "EndpointID": "c9e1ff4ecb496877db64224ed9738f996137bb5c0256f506bdcd61921a0764f7",
+                "MacAddress": "ae:40:db:10:ba:39",
+                "IPv4Address": "172.19.0.6/16",
+                "IPv6Address": ""
+            },
+            "c462f7d0d3b6dcd8c67620815197b656ba51a5e5cb1c82eb19b9f0958ef429e5": {
+                "Name": "containerisation-backend-2",
+                "EndpointID": "95f2672efa3556745fec3fd3604f62697a82157a9348f20671bf1fc2066c09d5",
+                "MacAddress": "82:df:19:d0:85:27",
+                "IPv4Address": "172.19.0.4/16",
+                "IPv6Address": ""
+            }
+        },
+        "Status": {
+            "IPAM": {
+                "Subnets": {
+                    "172.19.0.0/16": {
+                        "IPsInUse": 8,
+                        "DynamicIPsAvailable": 65528
+                    }
+                }
+            }
+        }
+    }
+]
