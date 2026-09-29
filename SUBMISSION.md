@@ -337,3 +337,81 @@ confirmed the status explicitly:
 ```text
 "GET /api/events HTTP/1.0" 429 169 "-" "ApacheBench/2.3" "-"
 ```
+
+## Phase 8 — Container hardening and CI
+
+### Runtime hardening
+
+Both application Dockerfiles now specify an explicit non-root runtime user.
+The backend builds production dependencies and the Prisma client in a separate
+stage, then copies only `node_modules` and application files into the final
+Node/Alpine image before switching to `USER node`. Its only added system package
+is OpenSSL, which Prisma requires at generation and runtime.
+
+The frontend already used a multi-stage build; its final image now uses
+`nginxinc/nginx-unprivileged:alpine`, copies only the generated static bundle,
+listens on unprivileged port 8080, and runs as `USER nginx`. The reverse proxy
+was updated to reach the frontend on port 8080; host exposure remains limited to
+the Phase 4 proxy ports 80 and 443.
+
+Both application build contexts have expanded `.dockerignore` rules for Git and
+CI metadata, local environment files, key/certificate formats, `secrets`,
+dependencies, build artifacts, coverage, caches, logs, and test artifacts. This
+prevents accidental secret or local-file inclusion and keeps the observed build
+contexts small (backend 5.56kB, frontend 2.84kB).
+
+### Non-root and end-to-end evidence
+
+After `docker compose up --build -d --force-recreate`, the three backend
+replicas and the database were healthy; frontend and proxy were running. The
+application checks below completed successfully:
+
+```sh
+docker compose exec -T backend whoami
+docker compose exec -T backend id
+docker compose exec -T frontend whoami
+docker compose exec -T frontend id
+docker compose exec -T frontend nginx -t
+docker compose exec -T proxy nginx -t
+curl --fail --insecure https://localhost/ -o /dev/null
+curl --fail --insecure https://localhost/api/events -o /dev/null
+```
+
+Raw identity and Nginx validation output:
+
+```text
+node
+uid=1000(node) gid=1000(node) groups=1000(node)
+nginx
+uid=101(nginx) gid=101(nginx) groups=101(nginx)
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+containerisation-frontend:latest 83.8MB
+containerisation-backend:latest 339MB
+```
+
+### CI pipeline
+
+`.github/workflows/docker-build.yml` runs on pushes and pull requests with
+read-only repository permissions. It lints both Dockerfiles using Hadolint and
+builds both hardened runtime images. The local equivalent completed successfully:
+
+```sh
+docker run --rm -i hadolint/hadolint hadolint --failure-threshold error - < backend/Dockerfile
+docker run --rm -i hadolint/hadolint hadolint --failure-threshold error - < frontend/Dockerfile
+docker build -t orbis-backend:ci ./backend
+docker build -t orbis-frontend:ci ./frontend
+```
+
+Hadolint reported no errors. It retained warnings that the two `apk add openssl`
+instructions are not version-pinned and informational messages about named
+non-root users; CI fails at the `error` threshold. Pinning the Alpine package
+version was intentionally avoided because the exact package version changes with
+the selected base-image release.
+
+No GitHub Actions screenshot exists yet: this task explicitly prohibits pushing,
+so creating a remote workflow run would violate the requested scope. The committed
+workflow is ready to run and the identical local lint/build checks above provide
+the available evidence without remote mutation.
