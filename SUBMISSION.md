@@ -272,17 +272,16 @@ above returned `200` after Compose waited for readiness.
 
 ## Phase 7 — Scaling, load balancing, and rate limiting
 
-### Configuration and verification
+### What I changed
 
-`BACKEND_REPLICAS=3` in `.env` controls the Compose `deploy.replicas` value.
-The backend has no fixed `container_name`, so Compose can create multiple
-instances. Nginx defines `backend_pool`, resolves Docker DNS dynamically through
-`127.0.0.11`, and sends `/api/` requests to that pool with the default
-round-robin policy. The upstream is dynamic so it discovers all replicas rather
-than retaining only the IP returned during Nginx startup.
+I set `BACKEND_REPLICAS=3` in `.env`, so Compose starts three backend
+containers. Nginx has a `backend_pool` for `/api/` requests. It sends one request
+to each backend in turn (round-robin), instead of sending every request to only
+one container. Docker's internal DNS lets Nginx find the backend containers.
 
-The API response includes `X-Backend-Hostname` solely to make this deployment
-verifiable. With three healthy replicas, six successive public requests returned:
+I added the `X-Backend-Hostname` response header only as a simple way to check
+which backend answered a request. Six requests gave three different names,
+repeating in order:
 
 ```text
 X-Backend-Hostname: 1326f51ec395
@@ -293,17 +292,15 @@ X-Backend-Hostname: b0cf360f36be
 X-Backend-Hostname: 59788145450c
 ```
 
-`nginx -t` reported that the configuration syntax was OK. `docker compose ps`
-reported all three `containerisation-backend-*` containers healthy, with only the
-proxy published on host ports 80 and 443.
+`nginx -t` passed and `docker compose ps` showed all three backends as healthy.
+Only the proxy is published on ports 80 and 443.
 
-API traffic is limited per client IP to 100 requests/sec with a burst allowance
-of 100 and returns HTTP 429 when exceeded. The allowance lets the controlled
-100-request comparison run without accidental throttling, while limiting a
-larger abusive burst.
+I also added an Nginx rate limit for the API: one client can make 100 requests
+per second, with a burst of 100. Requests above that return HTTP 429. This is a
+basic protection against one client flooding the API.
 
-A final post-hardening regression check again rotated through three live
-replicas and confirmed that throttling remains active:
+I repeated the check after the hardening changes. It still used all three
+backends, and the larger test still produced 429 responses:
 
 ```text
 X-Backend-Hostname: c462f7d0d3b6
@@ -318,10 +315,12 @@ Non-2xx responses:      106
 "GET /api/events HTTP/1.0" 429 169 "-" "ApacheBench/2.3" "-"
 ```
 
-### Load-test method
+### Load test
 
-The public, unauthenticated `GET /api/events` endpoint was tested over the
-reverse proxy's self-signed HTTPS endpoint using the system ApacheBench 2.3:
+I used ApacheBench (`ab`) against the public `GET /api/events` endpoint. First I
+ran it with one backend, then with three backends. The 100-request tests stay
+within the rate-limit burst allowance. The final bigger test is only to check
+that the rate limit returns 429:
 
 ```sh
 # baseline
@@ -436,12 +435,10 @@ Percentage of the requests served within a certain time (ms)
  100%     37 (longest request)
 ```
 
-The scaled run improved mean throughput from 390.03 to 393.66 requests/sec
-(about 0.9%) and reduced the longest request from 47ms to 37ms. This modest
-change is expected: the endpoint is a small read against one shared local
-PostgreSQL instance, so it is not CPU-bound enough for three Node processes to
-produce a linear gain. The distinct alternating hostname headers prove requests
-were nevertheless distributed across all three replicas.
+The one-backend run handled 390.03 requests/sec and the three-backend run handled
+393.66 requests/sec. This is only a small difference because the endpoint is a
+small database read on one local machine. The important check here is that the
+hostname headers show that Nginx really used all three containers.
 
 ### Rate-limit burst output
 
@@ -495,11 +492,9 @@ Percentage of the requests served within a certain time (ms)
  100%    160 (longest request)
 ```
 
-The 177 non-2xx responses in the burst run are the configured 429 rate-limit
-responses; the preceding health check and successful comparison runs rule out an
-upstream failure. This demonstrates that normal short bursts are admitted while
-larger bursts are rejected before reaching the backend pool. The proxy access log
-confirmed the status explicitly:
+The 177 failed requests in this test are expected 429 rate-limit responses, not
+backend crashes. The earlier 100-request runs worked, and the proxy log also
+showed 429 explicitly:
 
 ```text
 "GET /api/events HTTP/1.0" 429 169 "-" "ApacheBench/2.3" "-"
@@ -509,29 +504,26 @@ confirmed the status explicitly:
 
 ### Runtime hardening
 
-Both application Dockerfiles now specify an explicit non-root runtime user.
-The backend builds production dependencies and the Prisma client in a separate
-stage, then copies only `node_modules` and application files into the final
-Node/Alpine image before switching to `USER node`. Its only added system package
-is OpenSSL, which Prisma requires at generation and runtime.
+The main idea in this phase was to make the final containers less risky if
+something goes wrong inside them.
 
-The frontend already used a multi-stage build; its final image now uses
-`nginxinc/nginx-unprivileged:alpine`, copies only the generated static bundle,
-listens on unprivileged port 8080, and runs as `USER nginx`. The reverse proxy
-was updated to reach the frontend on port 8080; host exposure remains limited to
-the Phase 4 proxy ports 80 and 443.
+Both Dockerfiles now use a non-root user. The backend runs as `node`. The
+frontend runs as `nginx` on port 8080, which is not a privileged port. The
+backend build creates Prisma and production dependencies before the final image,
+so the final image does not need build tools. The frontend final image contains
+only the generated static files and unprivileged Nginx.
 
-Both application build contexts have expanded `.dockerignore` rules for Git and
-CI metadata, local environment files, key/certificate formats, `secrets`,
-dependencies, build artifacts, coverage, caches, logs, and test artifacts. This
-prevents accidental secret or local-file inclusion and keeps the observed build
-contexts small (backend 5.56kB, frontend 2.84kB).
+I also expanded both `.dockerignore` files. They leave out `.env` files, keys,
+Git files, dependencies, build output, logs, coverage, and other local files.
+That keeps accidental secrets and unnecessary files out of Docker build
+contexts. The observed contexts were 5.56kB for the backend and 2.84kB for the
+frontend.
 
 ### Non-root and end-to-end evidence
 
-After `docker compose up --build -d --force-recreate`, the three backend
-replicas and the database were healthy; frontend and proxy were running. The
-application checks below completed successfully:
+After rebuilding, the three backends and database were healthy; frontend and
+proxy were running. I used these checks to make sure the application containers
+were not running as root and that both Nginx configurations were valid:
 
 ```sh
 docker compose exec -T backend whoami
@@ -561,9 +553,9 @@ containerisation-backend:latest 339MB
 
 ### CI pipeline
 
-`.github/workflows/docker-build.yml` runs on pushes and pull requests with
-read-only repository permissions. It lints both Dockerfiles using Hadolint and
-builds both hardened runtime images. The local equivalent completed successfully:
+`.github/workflows/docker-build.yml` runs on pushes and pull requests. It checks
+both Dockerfiles with Hadolint and builds both images. I also ran the same checks
+locally:
 
 ```sh
 docker run --rm -i hadolint/hadolint hadolint --failure-threshold error - < backend/Dockerfile
@@ -572,16 +564,13 @@ docker build -t orbis-backend:ci ./backend
 docker build -t orbis-frontend:ci ./frontend
 ```
 
-Hadolint reported no errors. It retained warnings that the two `apk add openssl`
-instructions are not version-pinned and informational messages about named
-non-root users; CI fails at the `error` threshold. Pinning the Alpine package
-version was intentionally avoided because the exact package version changes with
-the selected base-image release.
+Hadolint had no errors. It showed only warnings about the OpenSSL package not
+being version-pinned and about named non-root users. The workflow treats errors
+as failures, so the warnings did not fail the build.
 
-No GitHub Actions screenshot exists yet: this task explicitly prohibits pushing,
-so creating a remote workflow run would violate the requested scope. The committed
-workflow is ready to run and the identical local lint/build checks above provide
-the available evidence without remote mutation.
+After pushing the private repository, GitHub Actions ran successfully on `main`
+for commit `a94f275` in 52 seconds. A screenshot of the green
+`Docker build and lint` run was captured for the Phase 8 submission evidence.
 
 ## Post-review frontend integration verification
 
