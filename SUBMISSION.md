@@ -501,7 +501,7 @@ showed 429 explicitly:
 ```
 
 ## Phase 8 — Container hardening and CI
-
+![Successful GitHub Actions Docker build and lint run](evidence/github-actions-success.png)
 ### Runtime hardening
 
 The main idea in this phase was to make the final containers less risky if
