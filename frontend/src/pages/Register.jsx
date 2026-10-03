@@ -1,42 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import {useNavigate, Link, Navigate} from 'react-router-dom';
-import { authAPI } from '../api/api.js';
-import Button from '../components/Button';
-import { useAuth0 } from "@auth0/auth0-react";
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Register = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('PARTICIPANT');
-  const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { loginWithRedirect, isAuthenticated } = useAuth0();
-  const [email, setEmail] = useState(user.email);
-  // const { register } = useAuth();
+  const { login, isAuthenticated, authConfigured } = useAuth();
 
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/events');
     }
   }, [isAuthenticated, navigate]);
-
-  //If user is not logged in using auth0, restrict the user to access the page
-  // if(!isAuthenticated){
-  //   return <Navigate to={'/'} replace/>;
-  // }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await authAPI.register({email, username, role});
-      navigate('/');
-    } catch (error) {
-      setError(error.response?.data?.error || 'Failed to register');
-    }
-  };
-
-  const inputClasses = "w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-lg focus:outline-none focus:border-black transition-colors text-sm";
-  const labelClasses = "block mb-2 text-sm text-gray-600 tracking-wide";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -46,16 +20,22 @@ const Register = () => {
             Create your account
           </h2>
         </div>
-        <button
-          onClick={() => loginWithRedirect({ screen_hint: 'signup' })}
-          className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-        >
-          Sign up with Auth0
-        </button>
+        {authConfigured ? (
+          <button
+            onClick={() => login({ authorizationParams: { screen_hint: 'signup' } })}
+            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            Sign up with Auth0
+          </button>
+        ) : (
+          <p className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Registration needs real Auth0 browser credentials. Configure them in
+            .env and rebuild the frontend.
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
 export default Register;
-

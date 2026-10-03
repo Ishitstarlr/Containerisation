@@ -16,6 +16,7 @@ import ApplyForm from "./pages/ApplyForEvent";  // Import the component
 import { NavigationProvider } from './contexts/NavigationContext';
 import OrganiserDashboard from './pages/OrganiserDashboard.jsx';
 import EventDashboard from './pages/EventDashboard.jsx';
+import { auth0Config, isAuth0Configured } from './config/runtime';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -40,70 +41,48 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 };
 
 const App = () => {
+  const content = (
+    <AuthProvider>
+      <div className="App min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/create-event" element={<ProtectedRoute requiredRole="ORGANIZER"><CreateEvent /></ProtectedRoute>} />
+            <Route path="/events/:id" element={<EventDetails />} />
+            <Route path="/edit-event/:id" element={<ProtectedRoute requiredRole="ORGANIZER"><EditEvent /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/edit-profile" element={<ProtectedRoute><Profile initialEditMode={true} /></ProtectedRoute>} />
+            <Route path="/events/:id/apply" element={<ApplyForm />} />
+            <Route path="/org-dashboard" element={<OrganiserDashboard />} />
+            <Route path="/event-dashboard/:id" element={<EventDashboard />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </AuthProvider>
+  );
+
   return (
     <Router>
       <NavigationProvider>
-      <Auth0Provider
-        domain={import.meta.env.VITE_AUTH0_DOMAIN}
-        clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
-        authorizationParams={{
-          redirect_uri: import.meta.env.VITE_AUTH0_REDIRECT_URI || window.location.origin,
-          audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-          scope: import.meta.env.VITE_AUTH0_SCOPE
-        }}
-        cacheLocation="localstorage"
-      >
-        <AuthProvider>
-          <div className="App min-h-screen flex flex-col">
-            <Navbar />
-            <main className="flex-grow">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/events" element={<Events />} />
-                <Route 
-                  path="/create-event" 
-                  element={
-                    <ProtectedRoute requiredRole="ORGANIZER">
-                      <CreateEvent />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route path="/events/:id" element={<EventDetails />} />
-                <Route 
-                  path="/edit-event/:id" 
-                  element={
-                    <ProtectedRoute requiredRole="ORGANIZER">
-                      <EditEvent />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/profile" 
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/edit-profile" 
-                  element={
-                    <ProtectedRoute>
-                      <Profile initialEditMode={true} />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route path="/events/:id/apply" element={<ApplyForm />} />  {/* NEW ROUTE */}
-                <Route path="/org-dashboard" element={<OrganiserDashboard />} />
-                <Route path="/event-dashboard/:id" element={<EventDashboard />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </AuthProvider>
-      </Auth0Provider>
+        {isAuth0Configured ? (
+          <Auth0Provider
+            domain={auth0Config.domain}
+            clientId={auth0Config.clientId}
+            authorizationParams={{
+              redirect_uri: auth0Config.redirectUri,
+              audience: auth0Config.audience,
+              scope: auth0Config.scope
+            }}
+            cacheLocation="localstorage"
+          >
+            {content}
+          </Auth0Provider>
+        ) : content}
       </NavigationProvider>
     </Router>
   );

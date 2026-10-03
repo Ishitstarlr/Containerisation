@@ -582,3 +582,63 @@ No GitHub Actions screenshot exists yet: this task explicitly prohibits pushing,
 so creating a remote workflow run would violate the requested scope. The committed
 workflow is ready to run and the identical local lint/build checks above provide
 the available evidence without remote mutation.
+
+## Post-review frontend integration verification
+
+After the project review, the requirement was clarified: the supplied frontend
+must work through the containerized deployment, rather than only the backend API.
+The initial frontend build exposed a supplied configuration defect: several pages
+formed requests directly as `${import.meta.env.VITE_API_URL}/api/...`. With no
+`VITE_API_URL` supplied at build time, the browser therefore requested
+`/undefined/api/events`.
+
+The deployment now passes the public `VITE_*` build arguments explicitly from
+the root `.env` through Compose to the frontend image. `VITE_API_URL` defaults to
+an empty string, deliberately making all API requests same-origin (`/api/...`)
+and therefore routing them through the HTTPS Nginx proxy. `.env.example` records
+the optional settings and explains that a blank API URL is the intended default.
+
+The frontend also no longer mounts Auth0 with missing browser credentials. When
+`VITE_AUTH0_DOMAIN` and `VITE_AUTH0_CLIENT_ID` are absent, public pages render
+normally and Login/Register show a clear configuration message. Real Auth0
+login cannot be verified or enabled with the starter repository alone: it needs
+a real Auth0 browser application, its client ID/domain, and an allowed callback
+URL. Those credentials are intentionally not invented or committed.
+
+### Reproduction and raw verification
+
+From the repository root, use the following command after copying
+`.env.example` to `.env` and choosing non-secret local database values:
+
+```sh
+docker compose up --build -d --force-recreate
+docker compose ps
+curl --insecure --fail https://localhost/events -o /dev/null
+curl --insecure --fail https://localhost/api/events
+```
+
+The final rebuilt deployment returned:
+
+```text
+containerisation-backend-1   Up (healthy)
+containerisation-backend-2   Up (healthy)
+containerisation-backend-3   Up (healthy)
+orbis-db                      Up (healthy)
+orbis-frontend                Up
+orbis-proxy                   Up   0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp
+events_page=200
+events_api=200 body=2
+[]
+compiled_bundle_has_no_undefined_api_url
+```
+
+The browser bundle was fetched from the live proxy and searched after the
+rebuild; it contains `/api/events` references and no `undefined/api` string.
+Proxy access logs recorded successful `GET /events`, `GET /assets/...js`, and
+`GET /api/events` requests, all with status `200`.
+
+For an interactive check, open `https://localhost/events` and accept the local
+development certificate warning if the browser displays one. The Events page
+should load through the same-origin proxy rather than request `/undefined/api`.
+Authentication-dependent actions require the Auth0 values described above; the
+unconfigured Login/Register screens are expected to show their setup message.

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Button from './Button';
 
 const Navbar = () => {
-  const { isAuthenticated, logout, user, login } = useAuth();
+  const { isAuthenticated, logout, user, login, authConfigured } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const canCreateEvent = user?.role === 'ORGANIZER';
@@ -90,10 +90,17 @@ const Navbar = () => {
                 <Button variant="primary" onClick={() => logout()}>Logout</Button>
               </>
             ) : (
-              <>
-                <Button variant="text" onClick={() => login()}>Login</Button>
-                <Button variant="primary" onClick={() => login({ screen_hint: 'signup' })}>Register</Button>
-              </>
+              authConfigured ? (
+                <>
+                  <Button variant="text" onClick={() => login()}>Login</Button>
+                  <Button variant="primary" onClick={() => login({ authorizationParams: { screen_hint: 'signup' } })}>Register</Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="text" to="/login">Login</Button>
+                  <Button variant="primary" to="/register">Register</Button>
+                </>
+              )
             )}
           </div>
 
@@ -156,4 +163,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-

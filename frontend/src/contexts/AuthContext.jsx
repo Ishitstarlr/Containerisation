@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { authAPI } from '../api/api';
+import { isAuth0Configured } from '../config/runtime';
 
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
+const Auth0BackedProvider = ({ children }) => {
   const { 
     isAuthenticated, 
     user: auth0User, 
@@ -51,6 +52,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     user,
     isLoading,
+    authConfigured: true,
     login: loginWithRedirect,
     logout: () => {
       localStorage.removeItem('auth0_token');
@@ -65,6 +67,26 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+const UnconfiguredAuthProvider = ({ children }) => (
+  <AuthContext.Provider value={{
+    isAuthenticated: false,
+    user: null,
+    isLoading: false,
+    authConfigured: false,
+    login: () => {},
+    logout: () => {},
+    getAccessToken: async () => null
+  }}>
+    {children}
+  </AuthContext.Provider>
+);
+
+export const AuthProvider = ({ children }) => (
+  isAuth0Configured
+    ? <Auth0BackedProvider>{children}</Auth0BackedProvider>
+    : <UnconfiguredAuthProvider>{children}</UnconfiguredAuthProvider>
+);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
